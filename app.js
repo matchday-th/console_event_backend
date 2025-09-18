@@ -5,6 +5,10 @@ const AutoLoad = require('@fastify/autoload')
 
 module.exports = async function (fastify, opts) {
 
+  fastify.get("/", async function (request, reply) {
+    return reply.send({ message: "Console Event is serve..." });
+  });
+
   fastify.register(AutoLoad, {
     dir: path.join(__dirname, 'plugins'),
     encapsulate: false,

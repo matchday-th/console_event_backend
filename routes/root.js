@@ -4,10 +4,6 @@ const Providers = require('../models/providers');
 
 module.exports = async function (fastify, opts) {
 
-  fastify.get("/", async function (request, reply) {
-    return reply.send({ message: "Console Event is serve..." });
-  });
-
   fastify.post("/login", async function (request, reply) {
     try{
       const { username, password } = request.body;

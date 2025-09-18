@@ -1,7 +1,5 @@
 const fp = require('fastify-plugin');
-const User = require('../models/user');
 const Provider = require('../models/providers');
-
 
 module.exports = fp(async function (fastify, opts) {
   fastify.register(require('@fastify/jwt'), {
