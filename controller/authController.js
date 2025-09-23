@@ -3,22 +3,22 @@ const bcrypt = require('bcrypt');
 
 async function login(request, reply) {
     try{
-      const { username, password } = request.body;
+      const { username } = request.body;
 
-      if (!username || !password) {
+      if (!username) {
         return reply.status(400).send({ mesage: "Username and password are required", field: "Fields" });
       }
 
-      const user = await authService.findUser({username, password});
+      const user = await authService.findUser({username});
       if (!user) {
         return reply.status(401).send({ message: 'Invalid username', field: 'Username' });
       }
 
-      // compare password
-      const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) {
-        return reply.status(401).send({ message: 'Invalid password', field : 'Password' });
-      }
+      // // compare password
+      // const validPassword = await bcrypt.compare(password, user.password);
+      // if (!validPassword) {
+      //   return reply.status(401).send({ message: 'Invalid password', field : 'Password' });
+      // }
 
       const token = request.server.jwt.sign(
         { uid: user.id , sub: "Arena" }
