@@ -1,10 +1,9 @@
 const Providers = require("../models/providers");
 
-async function findUser({username}) {
+async function findUser({id}) {
 
      return await Providers.query()
-                  .where('url_nickname', username)
-                  .orWhere('phone_number', username)
+                  .where('id', id)
                   .first();
 }
 
