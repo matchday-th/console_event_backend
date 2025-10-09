@@ -2,9 +2,9 @@ const { arenaCalendarService } = require("../services/arenaCalendarService");
 
 async function profile(request, reply) {
     try{
-      const { id } = request.params;
+      const { nickname } = request.params;
 
-      const res = await arenaCalendarService.providerById(id);
+      const res = await arenaCalendarService.providerByNickname(nickname);
 
       return reply.send(res);
 
@@ -37,6 +37,16 @@ async function matches(request, reply){
       const { name, phone } =  parseNameAndPhone(match.description);
       match.name = name;
       match.tel = phone;
+      match.match_price = formatNumber(match.match_price);
+      match.paid_amount = formatNumber(match.paid_amount);
+      match.total_price = formatNumber(match.total_price);
+      match.payment_solution = match.payment_status;
+      match.payment_status = paymentStatus(match.total_price, match.paid_amount);
+      if(match.match_discount){
+        match.payment_detail = {
+          promotion: match.match_discount.promotion,
+        }
+      }
     })
 
     return reply.send(res)
@@ -72,3 +82,18 @@ function parseNameAndPhone(str) {
   return { name: str, phone: null };
 }
 
+function formatNumber(num) {
+  num = Number(num);
+  return Number(num.toFixed(10))
+    .toString()
+    .replace(/\.0+$/, '')      // remove ".0"
+    .replace(/(\.\d*[1-9])0+$/, '$1'); // remove trailing zeros
+}
+
+function paymentStatus(total, paid) {
+  const leftToPay = total - paid;
+
+  if (paid == 0) return 'unpaid';
+  if (leftToPay == 0) return 'paid';
+  return 'dep';
+}

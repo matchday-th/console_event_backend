@@ -2,6 +2,7 @@ const { Model } = require('objection');
 const CourtType = require('./courtType');
 const MatchOptionPrice = require('./matchOptionPrice');
 const MatchDiscount = require('./matchDiscount');
+const PaymentDetail = require('./paymentDetail');
 
 class Match extends Model {
     static get tableName() {
@@ -33,6 +34,14 @@ class Match extends Model {
                     from: 'matches.id',
                     to: 'match_discounts.match_id'
                 }
+            },
+            payment_details: {
+                relation: Model.HasManyRelation,
+                modelClass: PaymentDetail,
+                join: {
+                from: 'matches.id',
+                to: 'payment_details.match_id',
+                },
             }
         };
     }

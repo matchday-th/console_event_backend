@@ -1,11 +1,17 @@
 const Match = require("../models/match");
 const Providers = require("../models/providers");
 
-async function providerById(id) {
+async function providerByNickname(nickname) {
+    // return await Providers.query()
+    //     .findById(id)
+    //     .withGraphFetched('provider_sports.[sport, court_types.[courts, time_slots]]')
+    //     .withGraphFetched('provider_setting')
     return await Providers.query()
-        .findById(id)
+        .select('minTime', 'maxTime', 'fullname', 'id', 'logo', 'url_nickname')
+        .whereRaw('BINARY url_nickname = ?', [nickname])
         .withGraphFetched('provider_sports.[sport, court_types.[courts, time_slots]]')
         .withGraphFetched('provider_setting')
+        .first()
 }
 
 async function matches(id, time_start, time_end){
@@ -16,13 +22,13 @@ async function matches(id, time_start, time_end){
             .whereBetween('time_start', [time_start, time_end])
             .withGraphFetched('court_type.[courts, provider_sport.[sport]]')
             .withGraphFetched('match_option_price.[option_price]')
-            // .withGraphFetched('match_discount.[promotion(selectedField)]')
-            // .modifiers({
-            //     selectedField(builder) {
-            //       builder.select('name', 'id', 'type', 'value', 'price');
-            //     }
-            // })
+            .withGraphFetched('match_discount.[promotion(selectedField)]')
+            .modifiers({
+                selectedField(builder) {
+                  builder.select('name', 'id', 'type', 'value', 'price');
+                }
+            })
 
 }
 
-module.exports.arenaCalendarService = { providerById, matches }
+module.exports.arenaCalendarService = { providerByNickname, matches }
