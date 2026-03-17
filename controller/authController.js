@@ -28,4 +28,32 @@ async function login(request, reply) {
     }
 }
 
-module.exports.authController = { login };
+async function changePassword(request, reply) {
+    try {
+      const { id } = request.params;
+      const { password } = request.body || {};
+
+      if (!id) {
+        return reply.status(400).send({ message: "Required ID", field: "id" });
+      }
+
+      if (!password) {
+        return reply.status(400).send({ message: "Required password", field: "password" });
+      }
+
+      const updated = await authService.changeProviderPassword({ id, password });
+      if (!updated) {
+        return reply.status(404).send({ message: "Provider not found", field: "id" });
+      }
+
+      return reply.send({ message: "Password updated" });
+    } catch (e) {
+      console.log(e);
+      return reply.status(500).send({
+        message:'Try again !',
+        field: "Internal Server Error"
+      });
+    }
+}
+
+module.exports.authController = { login, changePassword };
