@@ -3,7 +3,12 @@
 "use strict";
 
 const { authController } = require("../../controller/authController");
+const { providerMediaController } = require("../../controller/providerMediaController");
 
 module.exports = async function (fastify) {
     fastify.put('/provider/:id/change-password', authController.changePassword);
+    fastify.get('/provider/:id/media', providerMediaController.getProviderMedia);
+    fastify.put('/provider/:id/media', providerMediaController.createProviderPhoto);
+    fastify.get('/provider/facilities', providerMediaController.getFacilitiesList);
+    fastify.post('/provider/facility_providers', providerMediaController.createFacilityProvider);
 }

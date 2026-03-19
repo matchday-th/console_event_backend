@@ -15,10 +15,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.761.0",
     "@fastify/autoload": "^6.0.0",
     "@fastify/cors": "^11.1.0",
     "@fastify/jwt": "^10.0.0",
+    "@fastify/multipart": "^9.2.1",
     "@fastify/sensible": "^6.0.0",
+    "sharp": "^0.34.1",
     "bcrypt": "^6.0.0",
     "fastify": "^5.0.0",
     "fastify-cli": "^7.4.0",
