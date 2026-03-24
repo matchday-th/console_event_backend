@@ -11,4 +11,5 @@ module.exports = async function (fastify) {
     fastify.put('/provider/:id/media', providerMediaController.createProviderPhoto);
     fastify.get('/provider/facilities', providerMediaController.getFacilitiesList);
     fastify.post('/provider/facility_providers', providerMediaController.createFacilityProvider);
+    fastify.get('/provider/promotion-users', providerMediaController.getPromotionUsersIndex);
 }

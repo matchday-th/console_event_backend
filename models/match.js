@@ -13,7 +13,6 @@ const BillOrder = require('./billOrder');
 const Payment = require('./payment');
 const PaymentReceipt = require('./paymentReceipt');
 const UsedInventory = require('./usedInventory');
-const PromotionUser = require('./promotionUser');
 
 class Match extends Model {
     static get tableName() {
@@ -136,7 +135,7 @@ class Match extends Model {
             },
             promotion_users: {
                 relation: Model.HasManyRelation,
-                modelClass: PromotionUser,
+                modelClass: require.resolve('./promotionUser'),
                 join: {
                     from: 'matches.id',
                     to: 'promotion_users.match_id'

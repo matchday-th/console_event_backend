@@ -1,4 +1,5 @@
 const { providerMediaService } = require("../services/providerMediaService");
+const { promotionUserService } = require("../services/promotionUserService");
 
 async function getProviderMedia(request, reply) {
   try {
@@ -151,9 +152,66 @@ async function createFacilityProvider(request, reply) {
   }
 }
 
+function parsePositiveInt(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function parseOptionalBoolInt(value) {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (value === true || value === false) return value ? 1 : 0;
+  const normalized = String(value).trim().toLowerCase();
+  if (["1", "true", "yes"].includes(normalized)) return 1;
+  if (["0", "false", "no"].includes(normalized)) return 0;
+  return undefined;
+}
+
+async function getPromotionUsersIndex(request, reply) {
+  try {
+    const query = request.query || {};
+    const page = parsePositiveInt(query.page, 1);
+    const pageSize = parsePositiveInt(query.page_size, 20);
+    const matchCancelled = parseOptionalBoolInt(query.match_cancelled);
+    const matchDeleted = parseOptionalBoolInt(query.match_deleted);
+    const createdFrom = query.created_from;
+    const createdTo = query.created_to;
+
+    const { results, total } = await promotionUserService.getPromotionUsersIndex({
+      page,
+      pageSize,
+      promoname: query.promoname,
+      providerId: query.provider_id,
+      matchCancelled,
+      matchDeleted,
+      createdFrom,
+      createdTo,
+    });
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return reply.send({
+      data: results,
+      meta: {
+        page,
+        page_size: pageSize,
+        total,
+        total_pages: totalPages,
+      },
+    });
+  } catch (e) {
+    console.log(e);
+    return reply.status(500).send({
+      message: "Try again !",
+      field: "Internal Server Error",
+    });
+  }
+}
+
 module.exports.providerMediaController = {
   getProviderMedia,
   createProviderPhoto,
   getFacilitiesList,
   createFacilityProvider,
+  getPromotionUsersIndex,
 };
