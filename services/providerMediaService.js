@@ -29,6 +29,36 @@ async function getPhotosByProviderId({ providerId }) {
     .orderBy("id", "asc");
 }
 
+async function getProviderLogosById({ providerId }) {
+  if (!providerId) {
+    throw new Error("providerId is required");
+  }
+
+  return await Providers.query()
+    .select('logo', "logo2","logo_backup", "logo2_backup")
+    .where("id", providerId)
+    .first();
+}
+
+async function updateProviderLogo({ providerId, logoType, url }) {
+  if (!providerId) {
+    throw new Error("providerId is required");
+  }
+  if (!logoType) {
+    throw new Error("logoType is required");
+  }
+
+  const updated = await Providers.query()
+    .patch({ [logoType]: url })
+    .where("id", providerId);
+
+  if (!updated) {
+    return null;
+  }
+
+  return await getProviderLogosById({ providerId });
+}
+
 async function createProviderPhotos({ providerId, images }) {
   const rows = (images || []).map((image) => ({
     provider_id: providerId,
@@ -81,6 +111,8 @@ module.exports.providerMediaService = {
   getFacilityProviders,
   getFacilities,
   getPhotosByProviderId,
+  getProviderLogosById,
+  updateProviderLogo,
   getTableList,
   createFacilityProviders,
   createProviderPhotos,

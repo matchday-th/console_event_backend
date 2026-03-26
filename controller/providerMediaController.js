@@ -13,10 +13,13 @@ async function getProviderMedia(request, reply) {
       providerId: id,
     });
     const photos = await providerMediaService.getPhotosByProviderId({ providerId: id });
+    const provider = await providerMediaService.getProviderLogosById({ providerId: id });
+    const logos = provider ? provider : {};
 
     return reply.send({
       facility_providers: facilityProviders,
       photos,
+      logos,
     });
   } catch (e) {
     console.log(e);
@@ -93,6 +96,100 @@ async function createProviderPhoto(request, reply) {
       message: "Provider photo created",
       files: uploadedFiles.length ? uploadedFiles : undefined,
       photos: createdPhotos,
+    });
+  } catch (e) {
+    console.log(e);
+    return reply.status(500).send({
+      message: "Try again !",
+      field: "Internal Server Error",
+    });
+  }
+}
+
+async function updateProviderLogo(request, reply) {
+  try {
+    const { id } = request.params;
+    const allowedFields = ["logo", "logo_backup", "logo2", "logo2_backup"];
+
+    if (!id) {
+      return reply.status(400).send({ message: "Required ID", field: "id" });
+    }
+
+    if (!request.isMultipart || !request.isMultipart()) {
+      return reply.status(400).send({ message: "Multipart upload required" });
+    }
+
+    let logoType;
+    let uploadedFile;
+
+    const sharp = require("sharp");
+    const parts = request.parts();
+    for await (const part of parts) {
+      if (part.file) {
+        if (uploadedFile) {
+          return reply
+            .status(400)
+            .send({ message: "Only one image file is allowed", field: "file" });
+        }
+
+        const buffers = [];
+        for await (const chunk of part.file) buffers.push(chunk);
+        const buf = Buffer.concat(buffers);
+
+        if (!part.mimetype || !part.mimetype.startsWith("image/")) {
+          return reply
+            .status(400)
+            .send({ message: "Only image uploads are allowed", field: "file" });
+        }
+
+        uploadedFile = {
+          buffer: buf,
+          filename: part.filename || "logo",
+        };
+      } else if (part.fieldname === "logo_type") {
+        logoType = String(part.value || "").trim();
+      }
+    }
+
+    if (!logoType || !allowedFields.includes(logoType)) {
+      return reply.status(400).send({
+        message: "Invalid logo_type",
+        field: "logo_type",
+        allowed: allowedFields,
+      });
+    }
+
+    if (!uploadedFile) {
+      return reply.status(400).send({ message: "Required image file", field: "file" });
+    }
+
+    const webpBuffer = await sharp(uploadedFile.buffer)
+      .rotate()
+      .webp({ quality: 80 })
+      .toBuffer();
+
+    const { uploadProviderMedia } = require("../services/s3Service");
+    const safeBase = String(uploadedFile.filename).replace(/\.[^/.]+$/, "");
+    const filename = `${id}_${logoType}_${safeBase}.webp`;
+    const upload = await uploadProviderMedia({
+      filename,
+      body: webpBuffer,
+      contentType: "image/webp",
+    });
+
+    const logos = await providerMediaService.updateProviderLogo({
+      providerId: id,
+      logoType,
+      url: upload.url,
+    });
+
+    if (!logos) {
+      return reply.status(404).send({ message: "Provider not found", field: "id" });
+    }
+
+    return reply.send({
+      message: "Provider logo updated",
+      logos,
     });
   } catch (e) {
     console.log(e);
@@ -211,6 +308,7 @@ async function getPromotionUsersIndex(request, reply) {
 module.exports.providerMediaController = {
   getProviderMedia,
   createProviderPhoto,
+  updateProviderLogo,
   getFacilitiesList,
   createFacilityProvider,
   getPromotionUsersIndex,
