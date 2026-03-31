@@ -216,8 +216,26 @@ async function getFacilitiesList(request, reply) {
 async function createFacilityProvider(request, reply) {
   try {
     const payload = request.body;
+    const normalizeItems = (body) => {
+      if (!body) return [];
+      if (Array.isArray(body)) return body;
+      if (Array.isArray(body.items)) return body.items;
+      if (Array.isArray(body.facility_id)) {
+        const base = { ...body };
+        const ids = base.facility_id;
+        delete base.facility_id;
+        return ids.map((facility_id) => ({ ...base, facility_id }));
+      }
+      if (Array.isArray(body.facility_ids)) {
+        const base = { ...body };
+        const ids = base.facility_ids;
+        delete base.facility_ids;
+        return ids.map((facility_id) => ({ ...base, facility_id }));
+      }
+      return [body];
+    };
 
-    const items = Array.isArray(payload) ? payload : [payload];
+    const items = normalizeItems(payload);
     if (!items.length) {
       return reply.status(400).send({ message: "Required facility providers array" });
     }

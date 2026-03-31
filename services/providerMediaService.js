@@ -104,7 +104,24 @@ async function createFacilityProviders({ items }) {
     return [];
   }
 
-  return await FacilityProviders.query().insert(rows);
+  const knex = FacilityProviders.knex && FacilityProviders.knex();
+  const client = knex && knex.client && knex.client.config && knex.client.config.client;
+  const usePerRow =
+    rows.length > 1 && ["mysql", "mysql2", "sqlite3", "better-sqlite3"].includes(client);
+
+  if (usePerRow) {
+    return await FacilityProviders.transaction(async (trx) => {
+      const created = [];
+      for (const row of rows) {
+        const inserted = await FacilityProviders.query(trx).insertAndFetch(row);
+        created.push(inserted);
+      }
+      return created;
+    });
+  }
+
+  const result = await FacilityProviders.query().insert(rows);
+  return Array.isArray(result) ? result : [result];
 }
 
 module.exports.providerMediaService = {
