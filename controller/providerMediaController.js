@@ -14,12 +14,21 @@ async function getProviderMedia(request, reply) {
     });
     const photos = await providerMediaService.getPhotosByProviderId({ providerId: id });
     const provider = await providerMediaService.getProviderLogosById({ providerId: id });
+    const providerData = await providerMediaService.getProviderById({ providerId: id });
     const logos = provider ? provider : {};
+    const safeProvider = providerData
+      ? (typeof providerData.toJSON === "function" ? providerData.toJSON() : { ...providerData })
+      : null;
+
+    if (safeProvider) {
+      delete safeProvider.password;
+    }
 
     return reply.send({
       facility_providers: facilityProviders,
       photos,
       logos,
+      provider: safeProvider,
     });
   } catch (e) {
     console.log(e);
@@ -298,6 +307,86 @@ function parseOptionalBoolInt(value) {
   return undefined;
 }
 
+async function updateProviderSettings(request, reply) {
+  try {
+    const { id } = request.params;
+    const body = request.body || {};
+
+    if (!id) {
+      return reply.status(400).send({ message: "Required ID", field: "id" });
+    }
+
+    const patch = {};
+
+    const hiddenApp = parseOptionalBoolInt(body.hidden_app);
+    if (hiddenApp !== undefined) {
+      patch.hidden_app = hiddenApp;
+    }
+
+    const hiddenPage = parseOptionalBoolInt(body.hidden_page);
+    if (hiddenPage !== undefined) {
+      patch.hidden_page = hiddenPage;
+    }
+
+    // const openProvider = parseOptionalBoolInt(body.open_provider);
+    // if (openProvider !== undefined) {
+    //   patch.open_provider = openProvider;
+    // }
+
+    if (body.location !== undefined) {
+      const location = String(body.location || "").trim();
+      patch.location = location;
+    }
+
+    if (body.lat !== undefined && body.lat !== null && body.lat !== "") {
+      const parsedLat = Number.parseFloat(body.lat);
+      if (!Number.isNaN(parsedLat)) {
+        patch.lat = parsedLat;
+      }
+    }
+
+    if (body.lng !== undefined && body.lng !== null && body.lng !== "") {
+      const parsedLng = Number.parseFloat(body.lng);
+      if (!Number.isNaN(parsedLng)) {
+        patch.lng = parsedLng;
+      }
+    }
+
+    if (!Object.keys(patch).length) {
+      return reply.status(400).send({
+        message: "No updatable fields provided",
+        fields: ["hidden_app", "hidden_page", "location", "lat", "lng"],
+      });
+    }
+
+    const updated = await providerMediaService.updateProviderFields({
+      providerId: id,
+      patch,
+    });
+
+    if (!updated) {
+      return reply.status(404).send({ message: "Provider not found", field: "id" });
+    }
+
+    const safeProvider =
+      typeof updated.toJSON === "function" ? updated.toJSON() : { ...updated };
+    delete safeProvider.password;
+    delete safeProvider.password_hash;
+    delete safeProvider.salt;
+
+    return reply.send({
+      message: "Provider updated",
+      provider: safeProvider,
+    });
+  } catch (e) {
+    console.log(e);
+    return reply.status(500).send({
+      message: "Try again !",
+      field: "Internal Server Error",
+    });
+  }
+}
+
 async function getPromotionUsersIndex(request, reply) {
   try {
     const query = request.query || {};
@@ -343,6 +432,7 @@ module.exports.providerMediaController = {
   getProviderMedia,
   createProviderPhoto,
   updateProviderLogo,
+  updateProviderSettings,
   getFacilitiesList,
   createFacilityProvider,
   getPromotionUsersIndex,

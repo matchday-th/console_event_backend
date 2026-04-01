@@ -40,6 +40,16 @@ async function getProviderLogosById({ providerId }) {
     .first();
 }
 
+async function getProviderById({ providerId }) {
+  if (!providerId) {
+    throw new Error("providerId is required");
+  }
+
+  return await Providers.query()
+    .where("id", providerId)
+    .first();
+}
+
 async function updateProviderLogo({ providerId, logoType, url }) {
   if (!providerId) {
     throw new Error("providerId is required");
@@ -57,6 +67,18 @@ async function updateProviderLogo({ providerId, logoType, url }) {
   }
 
   return await getProviderLogosById({ providerId });
+}
+
+async function updateProviderFields({ providerId, patch }) {
+  if (!providerId) {
+    throw new Error("providerId is required");
+  }
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    throw new Error("patch is required");
+  }
+
+  const updated = await Providers.query().patchAndFetchById(providerId, patch);
+  return updated || null;
 }
 
 async function createProviderPhotos({ providerId, images }) {
@@ -129,7 +151,9 @@ module.exports.providerMediaService = {
   getFacilities,
   getPhotosByProviderId,
   getProviderLogosById,
+  getProviderById,
   updateProviderLogo,
+  updateProviderFields,
   getTableList,
   createFacilityProviders,
   createProviderPhotos,
