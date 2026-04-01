@@ -55,10 +55,18 @@ async function createProviderPhoto(request, reply) {
               .send({ message: "Only image uploads are allowed", field: "file" });
           }
 
-          const webpBuffer = await sharp(buf)
-            .rotate()
-            .webp({ quality: 80 })
-            .toBuffer();
+          let webpBuffer;
+          try {
+            webpBuffer = await sharp(buf, { failOnError: false })
+              .rotate()
+              .webp({ quality: 80 })
+              .toBuffer();
+          } catch (err) {
+            return reply.status(400).send({
+              message: "Invalid or corrupted image file",
+              field: "file",
+            });
+          }
 
           const { uploadProviderMedia } = require("../services/s3Service");
           const safeBase = String(part.filename || "upload").replace(/\.[^/.]+$/, "");
@@ -163,10 +171,18 @@ async function updateProviderLogo(request, reply) {
       return reply.status(400).send({ message: "Required image file", field: "file" });
     }
 
-    const webpBuffer = await sharp(uploadedFile.buffer)
-      .rotate()
-      .webp({ quality: 80 })
-      .toBuffer();
+    let webpBuffer;
+    try {
+      webpBuffer = await sharp(uploadedFile.buffer, { failOnError: false })
+        .rotate()
+        .webp({ quality: 80 })
+        .toBuffer();
+    } catch (err) {
+      return reply.status(400).send({
+        message: "Invalid or corrupted image file",
+        field: "file",
+      });
+    }
 
     const { uploadProviderMedia } = require("../services/s3Service");
     const safeBase = String(uploadedFile.filename).replace(/\.[^/.]+$/, "");
