@@ -22,5 +22,14 @@ async function getProviders(request, reply) {
    }
 }
 
+async function getProviderIdFullnameList(request, reply) {
+   try {
+    const result = await providerLoginService.getProviderIdFullnameList();
+    return reply.send({ data: result });
+   } catch (err) {
+    console.log(err);
+    reply.code(500).send({ message: 'Something went wrong!' });
+   }
+}
 
-module.exports.providerLoginController = { getProviders }
+module.exports.providerLoginController = { getProviders, getProviderIdFullnameList }
