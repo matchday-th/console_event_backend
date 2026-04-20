@@ -40,6 +40,7 @@ async function createStaff({ username, password, level, provider_id }) {
         username,
         password: hashedPassword,
         level,
+        fullname: username,
         provider_id,
       });
   } catch (err) {
