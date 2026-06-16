@@ -54,7 +54,33 @@ async function createStaff({ username, password, level, provider_id }) {
   }
 }
 
+async function updateStaffRole({ staffId, roleId }) {
+  const knex = Staff.knex();
+
+  if (roleId !== null) {
+    const role = await knex("roles").select("id").where("id", roleId).first();
+
+    if (!role) {
+      const err = new Error("role not found");
+      err.code = "ROLE_NOT_FOUND";
+      throw err;
+    }
+  }
+
+  const updated = await Staff.query()
+    .from("staff")
+    .patch({ role_id: roleId })
+    .where("id", staffId);
+
+  if (!updated) {
+    return null;
+  }
+
+  return await Staff.query().from("staff").where("id", staffId).first();
+}
+
 module.exports.staffService = {
   getStaffByProvider,
   createStaff,
+  updateStaffRole,
 };

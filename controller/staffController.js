@@ -54,7 +54,46 @@ async function createStaff(request, reply) {
   }
 }
 
+async function updateStaffRole(request, reply) {
+  try {
+    const staffId = Number.parseInt(request.params.id, 10);
+    const body = request.body || {};
+
+    if (Number.isNaN(staffId) || staffId <= 0) {
+      return reply.code(400).send({ message: "Valid staff id is required", field: "id" });
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(body, "role_id")) {
+      return reply.code(400).send({ message: "role_id is required", field: "role_id" });
+    }
+
+    let roleId = null;
+    if (body.role_id !== null && body.role_id !== undefined && body.role_id !== "") {
+      roleId = Number.parseInt(body.role_id, 10);
+
+      if (Number.isNaN(roleId) || roleId <= 0) {
+        return reply.code(400).send({ message: "Valid role_id is required", field: "role_id" });
+      }
+    }
+
+    const result = await staffService.updateStaffRole({ staffId, roleId });
+
+    if (!result) {
+      return reply.code(404).send({ message: "Staff not found", field: "id" });
+    }
+
+    return reply.send({ data: result });
+  } catch (err) {
+    console.log(err);
+    if (err.code === "ROLE_NOT_FOUND") {
+      return reply.code(404).send({ message: "Role not found", field: "role_id" });
+    }
+    return reply.code(500).send({ message: "Something went wrong!" });
+  }
+}
+
 module.exports.staffController = {
   getStaffByProvider,
   createStaff,
+  updateStaffRole,
 };
