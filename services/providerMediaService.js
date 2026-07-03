@@ -2,6 +2,7 @@ const Providers = require("../models/providers");
 const Facilities = require("../models/facilities");
 const FacilityProviders = require("../models/facilityProviders");
 const Photos = require("../models/photos");
+const Court = require("../models/court");
 
 async function getFacilityProviders({ providerId } = {}) {
   if (!providerId) {
@@ -81,6 +82,18 @@ async function updateProviderFields({ providerId, patch }) {
   return updated || null;
 }
 
+async function updateCourtFields({ courtId, patch }) {
+  if (!courtId) {
+    throw new Error("courtId is required");
+  }
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    throw new Error("patch is required");
+  }
+
+  const updated = await Court.query().patchAndFetchById(courtId, patch);
+  return updated || null;
+}
+
 async function createProviderPhotos({ providerId, images }) {
   const rows = (images || []).map((image) => ({
     provider_id: providerId,
@@ -154,6 +167,7 @@ module.exports.providerMediaService = {
   getProviderById,
   updateProviderLogo,
   updateProviderFields,
+  updateCourtFields,
   getTableList,
   createFacilityProviders,
   createProviderPhotos,

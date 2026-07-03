@@ -454,6 +454,59 @@ async function updateProviderPublicFields(request, reply) {
   }
 }
 
+async function updateCourt(request, reply) {
+  try {
+    const { id } = request.params;
+    const body = request.body || {};
+
+    if (!id) {
+      return reply.status(400).send({ message: "Required ID", field: "id" });
+    }
+
+    const patch = {};
+
+    if (body.name !== undefined) {
+      const name = body.name === null ? "" : String(body.name).trim();
+      if (!name) {
+        return reply.status(400).send({ message: "Required name", field: "name" });
+      }
+      patch.name = name;
+    }
+
+    if (body.name_en !== undefined || body.en_name !== undefined) {
+      const nameEn = body.name_en !== undefined ? body.name_en : body.en_name;
+      patch.name_en = nameEn === null ? null : String(nameEn).trim();
+    }
+
+    if (!Object.keys(patch).length) {
+      return reply.status(400).send({
+        message: "No updatable fields provided",
+        fields: ["name", "name_en"],
+      });
+    }
+
+    const updated = await providerMediaService.updateCourtFields({
+      courtId: id,
+      patch,
+    });
+
+    if (!updated) {
+      return reply.status(404).send({ message: "Court not found", field: "id" });
+    }
+
+    return reply.send({
+      message: "Court updated",
+      court: updated,
+    });
+  } catch (e) {
+    console.log(e);
+    return reply.status(500).send({
+      message: "Try again !",
+      field: "Internal Server Error",
+    });
+  }
+}
+
 async function getPromotionUsersIndex(request, reply) {
   try {
     const query = request.query || {};
@@ -501,6 +554,7 @@ module.exports.providerMediaController = {
   updateProviderLogo,
   updateProviderSettings,
   updateProviderPublicFields,
+  updateCourt,
   getFacilitiesList,
   createFacilityProvider,
   getPromotionUsersIndex,
