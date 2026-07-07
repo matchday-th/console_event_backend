@@ -36,7 +36,18 @@ async function getProviderLogosById({ providerId }) {
   }
 
   return await Providers.query()
-    .select('logo', "logo2","logo_backup", "logo2_backup")
+    .select('logo', "logo2","logo_backup", "logo2_backup", "liff_logo", "liff_bg_url")
+    .where("id", providerId)
+    .first();
+}
+
+async function getProviderLiffMediaById({ providerId }) {
+  if (!providerId) {
+    throw new Error("providerId is required");
+  }
+
+  return await Providers.query()
+    .select("liff_logo", "liff_bg_url")
     .where("id", providerId)
     .first();
 }
@@ -68,6 +79,25 @@ async function updateProviderLogo({ providerId, logoType, url }) {
   }
 
   return await getProviderLogosById({ providerId });
+}
+
+async function updateProviderLiffMedia({ providerId, field, url }) {
+  if (!providerId) {
+    throw new Error("providerId is required");
+  }
+  if (!field) {
+    throw new Error("field is required");
+  }
+
+  const updated = await Providers.query()
+    .patch({ [field]: url })
+    .where("id", providerId);
+
+  if (!updated) {
+    return null;
+  }
+
+  return await getProviderLiffMediaById({ providerId });
 }
 
 async function updateProviderFields({ providerId, patch }) {
@@ -166,6 +196,7 @@ module.exports.providerMediaService = {
   getProviderLogosById,
   getProviderById,
   updateProviderLogo,
+  updateProviderLiffMedia,
   updateProviderFields,
   updateCourtFields,
   getTableList,

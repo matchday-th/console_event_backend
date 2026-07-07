@@ -234,6 +234,122 @@ async function updateProviderLogo(request, reply) {
   }
 }
 
+async function updateProviderLiffMedia(request, reply) {
+  try {
+    const { id } = request.params;
+    const allowedFields = ["liff_logo", "liff_bg_url"];
+    const fieldAliases = {
+      logo: "liff_logo",
+      liff_logo: "liff_logo",
+      bg: "liff_bg_url",
+      background: "liff_bg_url",
+      liff_bg_url: "liff_bg_url",
+    };
+
+    if (!id) {
+      return reply.status(400).send({ message: "Required ID", field: "id" });
+    }
+
+    if (!request.isMultipart || !request.isMultipart()) {
+      return reply.status(400).send({ message: "Multipart upload required" });
+    }
+
+    let targetField;
+    let uploadedFile;
+
+    const sharp = require("sharp");
+    const parts = request.parts();
+    for await (const part of parts) {
+      if (part.file) {
+        if (uploadedFile) {
+          return reply
+            .status(400)
+            .send({ message: "Only one image file is allowed", field: "file" });
+        }
+
+        const buffers = [];
+        for await (const chunk of part.file) buffers.push(chunk);
+        const buf = Buffer.concat(buffers);
+
+        if (!part.mimetype || !part.mimetype.startsWith("image/")) {
+          return reply
+            .status(400)
+            .send({ message: "Only image uploads are allowed", field: "file" });
+        }
+
+        uploadedFile = {
+          buffer: buf,
+          filename: part.filename || "liff",
+        };
+      } else if (["field", "target", "type"].includes(part.fieldname)) {
+        const requestedField = String(part.value || "").trim();
+        targetField = fieldAliases[requestedField] || requestedField;
+      }
+    }
+
+    if (!targetField || !allowedFields.includes(targetField)) {
+      return reply.status(400).send({
+        message: "Invalid field",
+        field: "field",
+        allowed: allowedFields,
+      });
+    }
+
+    if (!uploadedFile) {
+      return reply.status(400).send({ message: "Required image file", field: "file" });
+    }
+
+    let webpBuffer;
+    try {
+      webpBuffer = await sharp(uploadedFile.buffer, { failOnError: false })
+        .rotate()
+        .webp({ quality: 80 })
+        .toBuffer();
+    } catch (err) {
+      return reply.status(400).send({
+        message: "Invalid or corrupted image file",
+        field: "file",
+      });
+    }
+
+    const { uploadProviderMedia } = require("../services/s3Service");
+    const safeBase = String(uploadedFile.filename)
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "_");
+    const filename = `${id}_${targetField}_${safeBase}.webp`;
+    const upload = await uploadProviderMedia({
+      filename,
+      body: webpBuffer,
+      contentType: "image/webp",
+    });
+    const mediaBaseUrl = "https://media.matchday.co.th";
+    const providerMediaUrl = `${mediaBaseUrl}/${upload.key}`;
+
+    const liffMedia = await providerMediaService.updateProviderLiffMedia({
+      providerId: id,
+      field: targetField,
+      url: providerMediaUrl,
+    });
+
+    if (!liffMedia) {
+      return reply.status(404).send({ message: "Provider not found", field: "id" });
+    }
+
+    return reply.send({
+      message: "Provider LIFF media updated",
+      field: targetField,
+      url: providerMediaUrl,
+      liff_media: liffMedia,
+    });
+  } catch (e) {
+    console.log(e);
+    return reply.status(500).send({
+      message: "Try again !",
+      field: "Internal Server Error",
+    });
+  }
+}
+
 async function getFacilitiesList(request, reply) {
   try {
     const facilities = await providerMediaService.getFacilities();
@@ -552,6 +668,7 @@ module.exports.providerMediaController = {
   getProviderMedia,
   createProviderPhoto,
   updateProviderLogo,
+  updateProviderLiffMedia,
   updateProviderSettings,
   updateProviderPublicFields,
   updateCourt,

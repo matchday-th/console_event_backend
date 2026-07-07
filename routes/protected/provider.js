@@ -15,6 +15,7 @@ module.exports = async function (fastify) {
     fastify.delete('/provider/:id/roles/:roleId', roleController.deleteRole);
     fastify.get('/provider/:id/media', providerMediaController.getProviderMedia);
     fastify.put('/provider/:id/media', providerMediaController.createProviderPhoto);
+    fastify.put('/provider/:id/media/liff', providerMediaController.updateProviderLiffMedia);
     fastify.put('/provider/:id/logo', providerMediaController.updateProviderLogo);
     fastify.put('/provider/:id/settings', providerMediaController.updateProviderSettings);
     fastify.put('/provider/:id/public-fields', providerMediaController.updateProviderPublicFields);
