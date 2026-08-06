@@ -15,6 +15,8 @@ async function getProviderMedia(request, reply) {
     const photos = await providerMediaService.getPhotosByProviderId({ providerId: id });
     const provider = await providerMediaService.getProviderLogosById({ providerId: id });
     const providerData = await providerMediaService.getProviderById({ providerId: id });
+    const courtType = await providerMediaService.getCourtTypesByProviderId({ providerId: id });
+    const courtOrders = await providerMediaService.getCourtOrdersByProviderId({ providerId: id });
     const logos = provider ? provider : {};
     const safeProvider = providerData
       ? (typeof providerData.toJSON === "function" ? providerData.toJSON() : { ...providerData })
@@ -38,6 +40,8 @@ async function getProviderMedia(request, reply) {
       photos,
       logos,
       provider: filteredProvider,
+      court_type: courtType,
+      court_orders: courtOrders,
     });
   } catch (e) {
     console.log(e);

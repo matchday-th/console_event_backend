@@ -3,6 +3,8 @@ const Facilities = require("../models/facilities");
 const FacilityProviders = require("../models/facilityProviders");
 const Photos = require("../models/photos");
 const Court = require("../models/court");
+const CourtType = require("../models/courtType");
+const ProviderSetting = require("../models/providerSetting");
 
 async function getFacilityProviders({ providerId } = {}) {
   if (!providerId) {
@@ -137,6 +139,31 @@ async function createProviderPhotos({ providerId, images }) {
   return await Photos.query().insert(rows);
 }
 
+async function getCourtTypesByProviderId({ providerId }) {
+  if (!providerId) {
+    throw new Error("providerId is required");
+  }
+
+  return await CourtType.query()
+    .select("court_types.*")
+    .joinRelated("provider_sport")
+    .where("provider_sport.provider_id", providerId)
+    .withGraphFetched("courts");
+}
+
+async function getCourtOrdersByProviderId({ providerId }) {
+  if (!providerId) {
+    throw new Error("providerId is required");
+  }
+
+  const setting = await ProviderSetting.query()
+    .select("court_orders")
+    .where("provider_id", providerId)
+    .first();
+
+  return setting ? setting.court_orders : null;
+}
+
 async function getTableList() {
   const knex = Providers.knex();
   if (!knex) {
@@ -195,6 +222,8 @@ module.exports.providerMediaService = {
   getPhotosByProviderId,
   getProviderLogosById,
   getProviderById,
+  getCourtTypesByProviderId,
+  getCourtOrdersByProviderId,
   updateProviderLogo,
   updateProviderLiffMedia,
   updateProviderFields,
