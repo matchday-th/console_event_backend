@@ -1,5 +1,6 @@
 const fp = require('fastify-plugin');
 const Provider = require('../models/providers');
+const SuperAdmin = require('../models/superAdmin');
 
 module.exports = fp(async function (fastify, opts) {
   fastify.register(require('@fastify/jwt'), {
@@ -12,13 +13,22 @@ module.exports = fp(async function (fastify, opts) {
     try {
       // Verify JWT token from Authorization header
       const res =  await request.jwtVerify();
-      const user = await Provider.query().findById(res.uid);
+
+      // The console's own token (md_console, from /md-console/login) is minted
+      // by the arena backend's SuperAdmin authenticator, so its uid indexes
+      // super_admins -- NOT providers. Looking it up in providers only ever
+      // matched when a super-admin id happened to collide with a provider id.
+      // The /api/login impersonation token is a Provider token, hence both.
+      const user = res.sub === 'SuperAdmin'
+        ? await SuperAdmin.query().findById(res.uid)
+        : await Provider.query().findById(res.uid);
 
       if (!user) {
         return reply.status(401).send({ error: 'Unauthorized' });
       }
       request.user = user; // add user data to request.user
-      
+      request.authSubject = res.sub;
+
     } catch (err) {
       console.log(err);
       reply.code(401).send({
