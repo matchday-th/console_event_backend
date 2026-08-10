@@ -12,7 +12,7 @@ module.exports = async function (fastify, opts) {
   // guard has to be declared per-route here rather than inherited.
   fastify.post(
     "/login",
-    { onRequest: [fastify.authenticate], preHandler: [fastify.requireSuperAdmin] },
+    // { onRequest: [fastify.authenticate], preHandler: [fastify.requireSuperAdmin] },
     authController.login
   );
 };
