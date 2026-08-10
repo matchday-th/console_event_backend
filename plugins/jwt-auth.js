@@ -37,5 +37,17 @@ module.exports = fp(async function (fastify, opts) {
       })
     }
   })
+
+  // Runs after `authenticate`, which is what populates request.authSubject.
+  // Impersonation and other console-only actions must not be reachable with a
+  // Provider token -- only with a super-admin's own md_console token.
+  fastify.decorate('requireSuperAdmin', async function (request, reply) {
+    if (request.authSubject !== 'SuperAdmin') {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: 'Super admin only'
+      });
+    }
+  })
 });
 
