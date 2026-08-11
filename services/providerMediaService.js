@@ -126,6 +126,28 @@ async function updateCourtFields({ courtId, patch }) {
   return updated || null;
 }
 
+async function getCourtTypeById({ courtTypeId }) {
+  if (!courtTypeId) {
+    throw new Error("courtTypeId is required");
+  }
+
+  return await CourtType.query()
+    .where("id", courtTypeId)
+    .first();
+}
+
+async function updateCourtTypeFields({ courtTypeId, patch }) {
+  if (!courtTypeId) {
+    throw new Error("courtTypeId is required");
+  }
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    throw new Error("patch is required");
+  }
+
+  const updated = await CourtType.query().patchAndFetchById(courtTypeId, patch);
+  return updated || null;
+}
+
 async function createProviderPhotos({ providerId, images }) {
   const rows = (images || []).map((image) => ({
     provider_id: providerId,
@@ -224,10 +246,12 @@ module.exports.providerMediaService = {
   getProviderById,
   getCourtTypesByProviderId,
   getCourtOrdersByProviderId,
+  getCourtTypeById,
   updateProviderLogo,
   updateProviderLiffMedia,
   updateProviderFields,
   updateCourtFields,
+  updateCourtTypeFields,
   getTableList,
   createFacilityProviders,
   createProviderPhotos,

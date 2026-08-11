@@ -81,6 +81,7 @@ async function createProviderPhoto(request, reply) {
           try {
             webpBuffer = await sharp(buf, { failOnError: false })
               .rotate()
+              .resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })
               .webp({ quality: 80 })
               .toBuffer();
           } catch (err) {
@@ -197,6 +198,7 @@ async function updateProviderLogo(request, reply) {
     try {
       webpBuffer = await sharp(uploadedFile.buffer, { failOnError: false })
         .rotate()
+        .resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })
         .webp({ quality: 80 })
         .toBuffer();
     } catch (err) {
@@ -307,6 +309,7 @@ async function updateProviderLiffMedia(request, reply) {
     try {
       webpBuffer = await sharp(uploadedFile.buffer, { failOnError: false })
         .rotate()
+        .resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })
         .webp({ quality: 80 })
         .toBuffer();
     } catch (err) {
@@ -627,6 +630,126 @@ async function updateCourt(request, reply) {
   }
 }
 
+async function updateCourtType(request, reply) {
+  try {
+    const { id } = request.params;
+
+    if (!id) {
+      return reply.status(400).send({ message: "Required ID", field: "id" });
+    }
+
+    const patch = {};
+    let uploadedImageUrl;
+
+    if (request.isMultipart && request.isMultipart()) {
+      const sharp = require("sharp");
+      const parts = request.parts();
+
+      for await (const part of parts) {
+        if (part.file) {
+          if (uploadedImageUrl) {
+            return reply
+              .status(400)
+              .send({ message: "Only one image file is allowed", field: "file" });
+          }
+
+          const buffers = [];
+          for await (const chunk of part.file) buffers.push(chunk);
+          const buf = Buffer.concat(buffers);
+
+          if (!part.mimetype || !part.mimetype.startsWith("image/")) {
+            return reply
+              .status(400)
+              .send({ message: "Only image uploads are allowed", field: "file" });
+          }
+
+          let webpBuffer;
+          try {
+            webpBuffer = await sharp(buf, { failOnError: false })
+              .rotate()
+              .resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })
+              .webp({ quality: 80 })
+              .toBuffer();
+          } catch (err) {
+            return reply.status(400).send({
+              message: "Invalid or corrupted image file",
+              field: "file",
+            });
+          }
+
+          const { uploadProviderMedia } = require("../services/s3Service");
+          const safeBase = String(part.filename || "court_type")
+            .replace(/\.[^/.]+$/, "")
+            .replace(/[^a-zA-Z0-9_-]+/g, "_");
+          const filename = `${id}_court_type_${safeBase}.webp`;
+          const upload = await uploadProviderMedia({
+            filename,
+            body: webpBuffer,
+            contentType: "image/webp",
+          });
+
+          const mediaBaseUrl = "https://media.matchday.co.th";
+          uploadedImageUrl = `${mediaBaseUrl}/${upload.key}`;
+        } else if (part.fieldname === "name") {
+          const name = String(part.value ?? "").trim();
+          if (!name) {
+            return reply.status(400).send({ message: "Required name", field: "name" });
+          }
+          patch.name = name;
+        } else if (part.fieldname === "name_en") {
+          const nameEn = String(part.value ?? "").trim();
+          patch.name_en = nameEn || null;
+        }
+      }
+    } else {
+      const body = request.body || {};
+
+      if (body.name !== undefined) {
+        const name = body.name === null ? "" : String(body.name).trim();
+        if (!name) {
+          return reply.status(400).send({ message: "Required name", field: "name" });
+        }
+        patch.name = name;
+      }
+
+      if (body.name_en !== undefined) {
+        patch.name_en = body.name_en === null ? null : String(body.name_en).trim();
+      }
+    }
+
+    if (uploadedImageUrl) {
+      patch.image = uploadedImageUrl;
+    }
+
+    if (!Object.keys(patch).length) {
+      return reply.status(400).send({
+        message: "No updatable fields provided",
+        fields: ["name", "name_en", "image"],
+      });
+    }
+
+    const updated = await providerMediaService.updateCourtTypeFields({
+      courtTypeId: id,
+      patch,
+    });
+
+    if (!updated) {
+      return reply.status(404).send({ message: "Court type not found", field: "id" });
+    }
+
+    return reply.send({
+      message: "Court type updated",
+      court_type: updated,
+    });
+  } catch (e) {
+    console.log(e);
+    return reply.status(500).send({
+      message: "Try again !",
+      field: "Internal Server Error",
+    });
+  }
+}
+
 async function getPromotionUsersIndex(request, reply) {
   try {
     const query = request.query || {};
@@ -676,6 +799,7 @@ module.exports.providerMediaController = {
   updateProviderSettings,
   updateProviderPublicFields,
   updateCourt,
+  updateCourtType,
   getFacilitiesList,
   createFacilityProvider,
   getPromotionUsersIndex,
