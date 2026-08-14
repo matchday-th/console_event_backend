@@ -41,13 +41,38 @@ module.exports = fp(async function (fastify, opts) {
   // Runs after `authenticate`, which is what populates request.authSubject.
   // Impersonation and other console-only actions must not be reachable with a
   // Provider token -- only with a super-admin's own md_console token.
+  //
+  // Two modes. `shadow` (the default) logs what real console traffic actually
+  // carries but lets it through; `enforce` rejects. This exists because the
+  // first enforcing rollout had to be reverted and the reason was never
+  // established -- md-console/login demonstrably mints subject "SuperAdmin"
+  // (arena-prod-2 config/auth.js) against the same adonis_db, so the failure was
+  // something else. Shadow first, read the logs, then flip LOGIN_GUARD=enforce.
+  //
+  // NOTE: `authenticate` still runs and still rejects anonymous callers even in
+  // shadow mode. That is the part that closes the token oracle; this decorator
+  // only narrows an already-authenticated caller down to super-admins.
+  const GUARD_MODE = String(process.env.LOGIN_GUARD || 'shadow').toLowerCase();
+
   fastify.decorate('requireSuperAdmin', async function (request, reply) {
-    if (request.authSubject !== 'SuperAdmin') {
-      return reply.status(403).send({
-        error: 'Forbidden',
-        message: 'Super admin only'
-      });
+    if (request.authSubject === 'SuperAdmin') return;
+
+    const seen = {
+      sub: request.authSubject,
+      uid: request.user && request.user.id,
+      route: request.url
+    };
+
+    if (GUARD_MODE !== 'enforce') {
+      request.log.warn(seen, 'login_guard: non-SuperAdmin allowed through (shadow mode)');
+      return;
     }
+
+    request.log.warn(seen, 'login_guard: non-SuperAdmin BLOCKED');
+    return reply.status(403).send({
+      error: 'Forbidden',
+      message: 'Super admin only'
+    });
   })
 });
 

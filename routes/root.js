@@ -10,9 +10,11 @@ module.exports = async function (fastify, opts) {
   //
   // This file is mounted by the PUBLIC AutoLoad register (no auth hook), so the
   // guard has to be declared per-route here rather than inherited.
+  // `authenticate` enforces (blocks anonymous). `requireSuperAdmin` obeys
+  // LOGIN_GUARD, which defaults to shadow -- see plugins/jwt-auth.js.
   fastify.post(
     "/login",
-    // { onRequest: [fastify.authenticate], preHandler: [fastify.requireSuperAdmin] },
+    { onRequest: [fastify.authenticate], preHandler: [fastify.requireSuperAdmin] },
     authController.login
   );
 };
