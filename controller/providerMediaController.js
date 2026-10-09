@@ -370,6 +370,25 @@ async function getFacilitiesList(request, reply) {
   }
 }
 
+async function updateFacilityProvider(request, reply) {
+  const { providerId, id } = request.params;
+  const { facility_id, detail } = request.body || {};
+  if (!Number.isSafeInteger(Number(facility_id)) || Number(facility_id) <= 0 || typeof detail !== "string" || detail.length > 255) {
+    return reply.status(400).send({ message: "A valid facility and detail are required" });
+  }
+  try {
+    const updated = await providerMediaService.updateFacilityProvider({
+      providerId, id, facilityId: Number(facility_id), detail: detail.trim(),
+    });
+    if (!updated) return reply.status(404).send({ message: "Facility mapping not found" });
+    return reply.send({ data: updated });
+  } catch (e) {
+    if (e.statusCode) return reply.status(e.statusCode).send({ message: e.message });
+    console.log(e);
+    return reply.status(500).send({ message: "Unable to update facility" });
+  }
+}
+
 async function createFacilityProvider(request, reply) {
   try {
     const payload = request.body;
@@ -802,5 +821,6 @@ module.exports.providerMediaController = {
   updateCourtType,
   getFacilitiesList,
   createFacilityProvider,
+  updateFacilityProvider,
   getPromotionUsersIndex,
 };

@@ -202,6 +202,27 @@ async function getTableList() {
     .filter((name) => !!name);
 }
 
+async function updateFacilityProvider({ providerId, id, facilityId, detail }) {
+  return FacilityProviders.transaction(async (trx) => {
+    // Serialize changes to this provider's mappings to prevent duplicate selections.
+    await Providers.query(trx).findById(providerId).forUpdate();
+    const current = await FacilityProviders.query(trx).findById(id).where("provider_id", providerId);
+    if (!current) return null;
+    const facility = await Facilities.query(trx).findById(facilityId);
+    if (!facility || (facility.provider_id != null && String(facility.provider_id) !== String(providerId))) {
+      throw Object.assign(new Error("Facility is unavailable for this provider"), { statusCode: 400 });
+    }
+    const duplicate = await FacilityProviders.query(trx)
+      .where({ provider_id: providerId, facility_id: facilityId }).whereNot("id", id).first();
+    if (duplicate) {
+      throw Object.assign(new Error("This facility is already selected"), { statusCode: 409 });
+    }
+    await FacilityProviders.query(trx).where({ id, provider_id: providerId })
+      .patch({ facility_id: facilityId, detail });
+    return { ...current, facility_id: facilityId, detail };
+  });
+}
+
 async function createFacilityProviders({ items }) {
   const rows = (items || []).map((item) => {
     const row = {
@@ -254,5 +275,6 @@ module.exports.providerMediaService = {
   updateCourtTypeFields,
   getTableList,
   createFacilityProviders,
+  updateFacilityProvider,
   createProviderPhotos,
 };

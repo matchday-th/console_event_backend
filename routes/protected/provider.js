@@ -23,6 +23,7 @@ module.exports = async function (fastify) {
     fastify.put('/court-type/:id', providerMediaController.updateCourtType);
     fastify.get('/provider/list', providerLoginController.getProviderIdFullnameList);
     fastify.get('/provider/facilities', providerMediaController.getFacilitiesList);
+    fastify.put('/provider/:providerId/facility_providers/:id', providerMediaController.updateFacilityProvider);
     fastify.post('/provider/facility_providers', providerMediaController.createFacilityProvider);
     fastify.get('/provider/promotion-users', providerMediaController.getPromotionUsersIndex);
 }
