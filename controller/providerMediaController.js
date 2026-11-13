@@ -137,6 +137,38 @@ async function createProviderPhoto(request, reply) {
   }
 }
 
+async function deleteProviderPhoto(request, reply) {
+  try {
+    const { id, photoId } = request.params;
+    const providerId = Number(id);
+    const photoIdNum = Number(photoId);
+
+    if (!Number.isInteger(providerId) || providerId <= 0) {
+      return reply.status(400).send({ message: "Required ID", field: "id" });
+    }
+    if (!Number.isInteger(photoIdNum) || photoIdNum <= 0) {
+      return reply.status(400).send({ message: "Required photo ID", field: "photoId" });
+    }
+
+    const deleted = await providerMediaService.deleteProviderPhoto({
+      providerId,
+      photoId: photoIdNum,
+    });
+
+    if (!deleted) {
+      return reply.status(404).send({ message: "Photo not found", field: "photoId" });
+    }
+
+    return reply.send({ message: "Provider photo deleted", id: photoIdNum });
+  } catch (e) {
+    console.log(e);
+    return reply.status(500).send({
+      message: "Try again !",
+      field: "Internal Server Error",
+    });
+  }
+}
+
 async function updateProviderLogo(request, reply) {
   try {
     const { id } = request.params;
@@ -813,6 +845,7 @@ async function getPromotionUsersIndex(request, reply) {
 module.exports.providerMediaController = {
   getProviderMedia,
   createProviderPhoto,
+  deleteProviderPhoto,
   updateProviderLogo,
   updateProviderLiffMedia,
   updateProviderSettings,

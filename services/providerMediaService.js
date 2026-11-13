@@ -161,6 +161,20 @@ async function createProviderPhotos({ providerId, images }) {
   return await Photos.query().insert(rows);
 }
 
+// Hard delete: the app, landing page and mobile readers load provider.photos
+// without a `deleted` filter, so a soft delete would keep the image visible.
+// The S3 object is left in place.
+async function deleteProviderPhoto({ providerId, photoId }) {
+  if (!providerId || !photoId) {
+    throw new Error("providerId and photoId are required");
+  }
+
+  return await Photos.query()
+    .delete()
+    .where("id", photoId)
+    .where("provider_id", providerId);
+}
+
 async function getCourtTypesByProviderId({ providerId }) {
   if (!providerId) {
     throw new Error("providerId is required");
@@ -277,4 +291,5 @@ module.exports.providerMediaService = {
   createFacilityProviders,
   updateFacilityProvider,
   createProviderPhotos,
+  deleteProviderPhoto,
 };
