@@ -27,5 +27,9 @@ module.exports = async function (fastify) {
     fastify.put('/provider/:providerId/facility_providers/:id', providerMediaController.updateFacilityProvider);
     fastify.post('/provider/facility_providers', providerMediaController.createFacilityProvider);
     fastify.get('/provider/promotion-users', providerMediaController.getPromotionUsersIndex);
+
+    // Facility update (name / image). Facilities are shared by every provider,
+    // so this is a super-admin action (requireSuperAdmin obeys LOGIN_GUARD).
+    fastify.put('/provider/facilities/:id', { preHandler: [fastify.requireSuperAdmin] }, providerMediaController.updateFacility);
 }
  

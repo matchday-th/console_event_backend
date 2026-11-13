@@ -95,3 +95,46 @@ test('controller validates payload, trims detail and returns service errors', as
   assert.equal((await request({ facility_id: 5, detail: '' })).code, 409);
   assert.equal((await request({ facility_id: 6, detail: '' })).code, 404);
 });
+
+// --- Facility update (name / image): providerMediaController.updateFacility ---
+
+function facilityHarness({ existing = { id: 4, name: 'Old' } } = {}) {
+  const calls = [];
+  const { providerMediaController } = load('controller/providerMediaController.js', {
+    '../services/providerMediaService': { providerMediaService: {
+      getFacilityById: async () => existing,
+      updateFacility: async (payload) => { calls.push(payload); return { ...existing, ...payload.patch }; },
+    } },
+    '../services/promotionUserService': { promotionUserService: {} },
+  });
+  async function request(id, body) {
+    const reply = { code: 200, status(code) { this.code = code; return this; }, send(body) { this.body = body; return this; } };
+    await providerMediaController.updateFacility({ params: { id }, body }, reply);
+    return reply;
+  }
+  return { request, calls };
+}
+
+test('updateFacility validates id and payload without writing', async () => {
+  const { request, calls } = facilityHarness();
+  assert.equal((await request('abc', { name: 'x' })).code, 400);
+  assert.equal((await request('4', {})).code, 400);
+  assert.equal((await request('4', { name: '   ' })).code, 400);
+  assert.equal((await request('4', { name: 'x'.repeat(256) })).code, 400);
+  assert.equal((await request('4', { name2: 'x'.repeat(256) })).code, 400);
+  assert.equal(calls.length, 0);
+});
+
+test('updateFacility patches trimmed names and clears empty name2', async () => {
+  const { request, calls } = facilityHarness();
+  const reply = await request('4', { name: '  Parking  ', name2: '' });
+  assert.equal(reply.code, 200);
+  assert.deepEqual({ ...calls[0].patch }, { name: 'Parking', name2: null });
+  assert.equal(reply.body.facility.name, 'Parking');
+});
+
+test('updateFacility returns 404 for unknown facility', async () => {
+  const { request, calls } = facilityHarness({ existing: null });
+  assert.equal((await request('4', { name: 'Parking' })).code, 404);
+  assert.equal(calls.length, 0);
+});

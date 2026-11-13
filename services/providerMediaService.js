@@ -273,6 +273,27 @@ async function createFacilityProviders({ items }) {
   return Array.isArray(result) ? result : [result];
 }
 
+// ---------------------------------------------------------------------------
+// Facility (global catalogue: name, name2, icon) -- update name / image
+// ---------------------------------------------------------------------------
+
+async function getFacilityById({ facilityId }) {
+  if (!facilityId) {
+    throw new Error("facilityId is required");
+  }
+  return (await Facilities.query().findById(facilityId)) || null;
+}
+
+async function updateFacility({ facilityId, patch }) {
+  if (!facilityId) {
+    throw new Error("facilityId is required");
+  }
+  if (!patch || typeof patch !== "object" || Array.isArray(patch) || !Object.keys(patch).length) {
+    throw new Error("patch is required");
+  }
+  return (await Facilities.query().patchAndFetchById(facilityId, patch)) || null;
+}
+
 module.exports.providerMediaService = {
   getFacilityProviders,
   getFacilities,
@@ -290,6 +311,8 @@ module.exports.providerMediaService = {
   getTableList,
   createFacilityProviders,
   updateFacilityProvider,
+  getFacilityById,
+  updateFacility,
   createProviderPhotos,
   deleteProviderPhoto,
 };

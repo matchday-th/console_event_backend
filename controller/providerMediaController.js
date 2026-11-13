@@ -475,6 +475,133 @@ async function createFacilityProvider(request, reply) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Facility update (name / name2 / icon image)
+//   PUT /provider/facilities/:id
+//   Body: multipart/form-data (name, name2, file) or JSON (name, name2).
+//   All fields optional, at least one required.
+//
+// Flow: readFacilityInput -> buildFacilityNamePatch -> (find facility)
+//       -> uploadFacilityIcon -> providerMediaService.updateFacility
+// ---------------------------------------------------------------------------
+
+const FACILITY_NAME_MAX_LENGTH = 255;
+const FACILITY_ICON_MAX_SIZE = 512;
+
+// Small error type so each step can stop the request with a 4xx response.
+function facilityError(statusCode, message, field) {
+  return Object.assign(new Error(message), { statusCode, field });
+}
+
+// Step 1: collect raw `name`, `name2` and the optional image from the request.
+async function readFacilityInput(request) {
+  const fields = {};
+  let file = null;
+
+  if (!(request.isMultipart && request.isMultipart())) {
+    const body = request.body || {};
+    if (body.name !== undefined) fields.name = body.name;
+    if (body.name2 !== undefined) fields.name2 = body.name2;
+    return { fields, file };
+  }
+
+  for await (const part of request.parts()) {
+    if (part.file) {
+      const buffers = [];
+      for await (const chunk of part.file) buffers.push(chunk);
+      if (file) throw facilityError(400, "Only one image file is allowed", "file");
+      if (!part.mimetype || !part.mimetype.startsWith("image/")) {
+        throw facilityError(400, "Only image uploads are allowed", "file");
+      }
+      file = { buffer: Buffer.concat(buffers), filename: part.filename || "icon" };
+    } else if (part.fieldname === "name" || part.fieldname === "name2") {
+      fields[part.fieldname] = part.value;
+    }
+  }
+  return { fields, file };
+}
+
+// Step 2: validate names and turn them into a DB patch.
+//   name  -> required when sent, trimmed, 1..255 chars
+//   name2 -> optional, trimmed, empty string clears it (null)
+function buildFacilityNamePatch(fields) {
+  const patch = {};
+
+  if (fields.name !== undefined) {
+    const name = fields.name === null ? "" : String(fields.name).trim();
+    if (!name || name.length > FACILITY_NAME_MAX_LENGTH) {
+      throw facilityError(400, `Name is required (max ${FACILITY_NAME_MAX_LENGTH} characters)`, "name");
+    }
+    patch.name = name;
+  }
+
+  if (fields.name2 !== undefined) {
+    const name2 = fields.name2 === null ? "" : String(fields.name2).trim();
+    if (name2.length > FACILITY_NAME_MAX_LENGTH) {
+      throw facilityError(400, `name2 must be at most ${FACILITY_NAME_MAX_LENGTH} characters`, "name2");
+    }
+    patch.name2 = name2 || null;
+  }
+
+  return patch;
+}
+
+// Step 3: convert the image to webp, upload to S3 and return its URL.
+async function uploadFacilityIcon(facilityId, file) {
+  const sharp = require("sharp");
+  let webpBuffer;
+  try {
+    webpBuffer = await sharp(file.buffer, { failOnError: false })
+      .rotate()
+      .resize({ width: FACILITY_ICON_MAX_SIZE, height: FACILITY_ICON_MAX_SIZE, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+  } catch (err) {
+    throw facilityError(400, "Invalid or corrupted image file", "file");
+  }
+
+  const { uploadProviderMedia } = require("../services/s3Service");
+  const safeBase = String(file.filename).replace(/\.[^/.]+$/, "").replace(/[^\w-]+/g, "_");
+  const upload = await uploadProviderMedia({
+    filename: `facility_${facilityId}_${Date.now()}_${safeBase}.webp`,
+    body: webpBuffer,
+    contentType: "image/webp",
+  });
+  return upload.url;
+}
+
+// Handler: wires the steps together and maps errors to responses.
+async function updateFacility(request, reply) {
+  try {
+    const facilityId = Number(request.params.id);
+    if (!Number.isSafeInteger(facilityId) || facilityId <= 0) {
+      throw facilityError(400, "Invalid facility id", "id");
+    }
+
+    const { fields, file } = await readFacilityInput(request);
+    const patch = buildFacilityNamePatch(fields);
+    if (!Object.keys(patch).length && !file) {
+      throw facilityError(400, "No updatable fields provided (name, name2, file)");
+    }
+
+    const existing = await providerMediaService.getFacilityById({ facilityId });
+    if (!existing) throw facilityError(404, "Facility not found", "id");
+
+    if (file) patch.icon = await uploadFacilityIcon(facilityId, file);
+
+    const facility = await providerMediaService.updateFacility({ facilityId, patch });
+    if (!facility) throw facilityError(404, "Facility not found", "id");
+
+    return reply.send({ message: "Facility updated", facility });
+  } catch (e) {
+    if (e.statusCode) {
+      return reply.status(e.statusCode).send({ message: e.message, field: e.field });
+    }
+    console.log(e);
+    return reply.status(500).send({ message: "Unable to update facility" });
+  }
+}
+
 function parsePositiveInt(value, fallback) {
   const parsed = Number.parseInt(value, 10);
   if (Number.isNaN(parsed) || parsed <= 0) return fallback;
@@ -855,5 +982,6 @@ module.exports.providerMediaController = {
   getFacilitiesList,
   createFacilityProvider,
   updateFacilityProvider,
+  updateFacility,
   getPromotionUsersIndex,
 };
